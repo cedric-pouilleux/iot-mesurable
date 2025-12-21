@@ -88,6 +88,11 @@ public:
     void saveConfig();
 
 private:
+#ifndef NATIVE_BUILD
+    Preferences _prefs;
+#endif
+    char _broker[128];
+    uint16_t _port;
 };
 
 #endif // CONFIG_MANAGER_H
