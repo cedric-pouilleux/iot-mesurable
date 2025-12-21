@@ -212,6 +212,36 @@ size_t SensorRegistry::buildStatusJson(char* buffer, size_t bufferSize) const {
     return written;
 }
 
+size_t SensorRegistry::buildConfigJson(char* buffer, size_t bufferSize) const {
+    size_t written = 0;
+    written += snprintf(buffer + written, bufferSize - written, "{");
+    
+    bool firstSensor = true;
+    
+    for (const auto& hw : _hardware) {
+        // Convert intervalMs to seconds (backend expects seconds)
+        int intervalSeconds = hw.intervalMs / 1000;
+        if (intervalSeconds <= 0) intervalSeconds = 60; // Default 60s
+        
+        for (const auto& sensor : hw.sensors) {
+            if (!firstSensor) {
+                written += snprintf(buffer + written, bufferSize - written, ",");
+            }
+            firstSensor = false;
+            
+            char compositeKey[64];
+            buildCompositeKey(hw.key, sensor.type, compositeKey, sizeof(compositeKey));
+            
+            written += snprintf(buffer + written, bufferSize - written,
+                "\"%s\":{\"interval\":%d}",
+                compositeKey, intervalSeconds);
+        }
+    }
+    
+    written += snprintf(buffer + written, bufferSize - written, "}");
+    return written;
+}
+
 // =============================================================================
 // Private Helpers
 // =============================================================================

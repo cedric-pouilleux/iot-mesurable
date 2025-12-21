@@ -218,10 +218,13 @@ private:
     
     unsigned long _lastStatusPublish;
     unsigned long _lastSystemPublish;
+    unsigned long _lastConfigPublish;
     static const unsigned long STATUS_INTERVAL = 5000;
     static const unsigned long SYSTEM_INTERVAL = 30000;  // Publish system info every 30s
+    static const unsigned long CONFIG_INTERVAL = 60000;  // Publish sensors config every 60s
     
     void publishStatus();
+    void publishConfig();
     void publishSystemInfo();
     void publishHardwareInfo();
     void handleMqttMessage(const char* topic, const char* payload);

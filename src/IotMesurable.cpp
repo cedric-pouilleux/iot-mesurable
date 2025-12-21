@@ -23,7 +23,7 @@
 // =============================================================================
 
 IotMesurable::IotMesurable(const char* moduleId) 
-    : _port(1883), _lastStatusPublish(0), _lastSystemPublish(0) {
+    : _port(1883), _lastStatusPublish(0), _lastSystemPublish(0), _lastConfigPublish(0) {
     
     strncpy(_moduleId, moduleId, sizeof(_moduleId) - 1);
     _moduleId[sizeof(_moduleId) - 1] = '\0';
@@ -215,6 +215,12 @@ void IotMesurable::loop() {
         publishSystemInfo();
         publishHardwareInfo();
     }
+    
+    // Publish sensors config periodically (for storage projections)
+    if (now - _lastConfigPublish >= CONFIG_INTERVAL) {
+        _lastConfigPublish = now;
+        publishConfig();
+    }
 }
 
 // =============================================================================
@@ -271,6 +277,20 @@ void IotMesurable::publishStatus() {
     snprintf(topic, sizeof(topic), "%s/sensors/status", _moduleId);
     
     _mqtt->publish(topic, fullBuffer, true);
+}
+
+void IotMesurable::publishConfig() {
+    if (!isConnected()) return;
+    
+    // Build sensors config JSON
+    char configBuffer[1024];
+    _registry->buildConfigJson(configBuffer, sizeof(configBuffer));
+    
+    // Publish to moduleId/sensors/config
+    char topic[128];
+    snprintf(topic, sizeof(topic), "%s/sensors/config", _moduleId);
+    
+    _mqtt->publish(topic, configBuffer, true);
 }
 
 void IotMesurable::publishSystemInfo() {

@@ -149,6 +149,14 @@ public:
     size_t buildStatusJson(char* buffer, size_t bufferSize) const;
     
     /**
+     * @brief Build config JSON for all sensors (intervals)
+     * @param buffer Output buffer
+     * @param bufferSize Buffer size
+     * @return Number of bytes written
+     */
+    size_t buildConfigJson(char* buffer, size_t bufferSize) const;
+    
+    /**
      * @brief Get all hardware definitions
      */
     const std::vector<HardwareDef>& getAllHardware() const { return _hardware; }
