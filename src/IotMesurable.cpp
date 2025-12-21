@@ -305,6 +305,11 @@ void IotMesurable::publishSystemInfo() {
     uint32_t heapTotal = ESP.getHeapSize() / 1024;
     uint32_t heapMinFree = ESP.getMinFreeHeap() / 1024;
     
+    // Get flash info
+    uint32_t flashTotal = ESP.getFlashChipSize() / 1024;
+    uint32_t flashSketchSize = ESP.getSketchSize() / 1024;
+    uint32_t flashFreeSketch = ESP.getFreeSketchSpace() / 1024;
+    
     // Get WiFi info
     if (WiFi.status() == WL_CONNECTED) {
         IPAddress localIP = WiFi.localIP();
@@ -321,13 +326,15 @@ void IotMesurable::publishSystemInfo() {
     int rssi = WiFi.RSSI();
     
     // Build JSON
-    char buffer[512];
+    char buffer[640];
     snprintf(buffer, sizeof(buffer),
         "{\"ip\":\"%s\",\"mac\":\"%s\",\"moduleType\":\"%s\",\"uptimeStart\":%lu,"
         "\"memory\":{\"heapTotalKb\":%lu,\"heapFreeKb\":%lu,\"heapMinFreeKb\":%lu},"
+        "\"flash\":{\"totalKb\":%lu,\"usedKb\":%lu,\"freeKb\":%lu},"
         "\"rssi\":%d}",
         ip, mac, _moduleType, uptimeSeconds,
-        heapTotal, heapFree, heapMinFree, rssi);
+        heapTotal, heapFree, heapMinFree,
+        flashTotal, flashSketchSize, flashFreeSketch, rssi);
     
     // Publish to moduleId/system/config
     char topic[128];
