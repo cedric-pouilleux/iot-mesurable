@@ -102,6 +102,12 @@ public:
      */
     void setBroker(const char* host, uint16_t port = 1883);
 
+    /**
+     * @brief Set module type (e.g., "air-quality", "climate")
+     * @param type Module type string
+     */
+    void setModuleType(const char* type);
+
     // =========================================================================
     // Sensor Registration
     // =========================================================================
