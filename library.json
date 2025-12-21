@@ -1,0 +1,41 @@
+{
+  "name": "iot-mesurable",
+  "version": "1.0.0",
+  "description": "ESP32 library for easy sensor integration with IoT Grow Brain ecosystem. Register your own sensors and publish data with minimal code.",
+  "keywords": [
+    "iot",
+    "mqtt",
+    "esp32",
+    "sensors",
+    "arduino",
+    "telemetry",
+    "monitoring"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cedric-pouilleux/iot-mesurable.git"
+  },
+  "authors": [
+    {
+      "name": "Cédric Pouilleux",
+      "maintainer": true
+    }
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/cedric-pouilleux/iot-mesurable",
+  "frameworks": ["arduino"],
+  "platforms": ["espressif32"],
+  "dependencies": {
+    "esphome/AsyncMqttClient": "https://github.com/esphome/AsyncMqttClient.git",
+    "tzapu/WiFiManager": "https://github.com/tzapu/WiFiManager.git",
+    "bblanchon/ArduinoJson": "^6.21.5"
+  },
+  "export": {
+    "include": [
+      "src/*",
+      "examples/*",
+      "README.md",
+      "LICENSE"
+    ]
+  }
+}
