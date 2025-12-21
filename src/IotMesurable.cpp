@@ -13,6 +13,7 @@
 
 #ifndef NATIVE_BUILD
 #include <ArduinoJson.h>
+#include <ArduinoOTA.h>
 #endif
 
 // =============================================================================
@@ -66,6 +67,12 @@ bool IotMesurable::begin() {
     _mqtt->onMessage([this](const char* topic, const char* payload) {
         handleMqttMessage(topic, payload);
     });
+
+#ifndef NATIVE_BUILD
+    // Start OTA
+    ArduinoOTA.setHostname(_moduleId);
+    ArduinoOTA.begin();
+#endif
     
     return _mqtt->connect();
 }
@@ -93,6 +100,12 @@ bool IotMesurable::begin(const char* ssid, const char* password) {
         handleMqttMessage(topic, payload);
     });
     
+#ifndef NATIVE_BUILD
+    // Start OTA
+    ArduinoOTA.setHostname(_moduleId);
+    ArduinoOTA.begin();
+#endif
+
     return _mqtt->connect();
 }
 
@@ -170,6 +183,10 @@ void IotMesurable::publish(const char* hardwareKey, const char* sensorType, int 
 void IotMesurable::loop() {
     _mqtt->loop();
     
+#ifndef NATIVE_BUILD
+    ArduinoOTA.handle();
+#endif
+
     // Publish status periodically
     unsigned long now = millis();
     if (now - _lastStatusPublish >= STATUS_INTERVAL) {
