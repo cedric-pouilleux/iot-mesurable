@@ -14,6 +14,8 @@
 #ifndef NATIVE_BUILD
 #include <ArduinoJson.h>
 #include <ArduinoOTA.h>
+#include <WiFi.h>
+#include <esp_system.h>
 #endif
 
 // =============================================================================
@@ -21,7 +23,7 @@
 // =============================================================================
 
 IotMesurable::IotMesurable(const char* moduleId) 
-    : _port(1883), _lastStatusPublish(0) {
+    : _port(1883), _lastStatusPublish(0), _lastSystemPublish(0) {
     
     strncpy(_moduleId, moduleId, sizeof(_moduleId) - 1);
     _moduleId[sizeof(_moduleId) - 1] = '\0';
@@ -206,6 +208,13 @@ void IotMesurable::loop() {
         _lastStatusPublish = now;
         publishStatus();
     }
+    
+    // Publish system info less frequently
+    if (now - _lastSystemPublish >= SYSTEM_INTERVAL) {
+        _lastSystemPublish = now;
+        publishSystemInfo();
+        publishHardwareInfo();
+    }
 }
 
 // =============================================================================
@@ -262,6 +271,81 @@ void IotMesurable::publishStatus() {
     snprintf(topic, sizeof(topic), "%s/sensors/status", _moduleId);
     
     _mqtt->publish(topic, fullBuffer, true);
+}
+
+void IotMesurable::publishSystemInfo() {
+#ifndef NATIVE_BUILD
+    if (!isConnected()) return;
+    
+    // Get system info from ESP32
+    char ip[16] = "0.0.0.0";
+    char mac[18] = "00:00:00:00:00:00";
+    unsigned long uptimeSeconds = millis() / 1000;
+    uint32_t heapFree = ESP.getFreeHeap() / 1024;
+    uint32_t heapTotal = ESP.getHeapSize() / 1024;
+    uint32_t heapMinFree = ESP.getMinFreeHeap() / 1024;
+    
+    // Get WiFi info
+    if (WiFi.status() == WL_CONNECTED) {
+        IPAddress localIP = WiFi.localIP();
+        snprintf(ip, sizeof(ip), "%d.%d.%d.%d", 
+            localIP[0], localIP[1], localIP[2], localIP[3]);
+        
+        uint8_t macAddr[6];
+        WiFi.macAddress(macAddr);
+        snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X",
+            macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4], macAddr[5]);
+    }
+    
+    // Get RSSI
+    int rssi = WiFi.RSSI();
+    
+    // Build JSON
+    char buffer[512];
+    snprintf(buffer, sizeof(buffer),
+        "{\"ip\":\"%s\",\"mac\":\"%s\",\"moduleType\":\"%s\",\"uptimeStart\":%lu,"
+        "\"memory\":{\"heapTotalKb\":%lu,\"heapFreeKb\":%lu,\"heapMinFreeKb\":%lu},"
+        "\"rssi\":%d}",
+        ip, mac, _moduleType, uptimeSeconds,
+        heapTotal, heapFree, heapMinFree, rssi);
+    
+    // Publish to moduleId/system/config
+    char topic[128];
+    snprintf(topic, sizeof(topic), "%s/system/config", _moduleId);
+    _mqtt->publish(topic, buffer, true);
+#endif
+}
+
+void IotMesurable::publishHardwareInfo() {
+#ifndef NATIVE_BUILD
+    if (!isConnected()) return;
+    
+    // Get chip info
+    esp_chip_info_t chipInfo;
+    esp_chip_info(&chipInfo);
+    
+    const char* chipModel = "ESP32";
+    if (chipInfo.model == CHIP_ESP32) chipModel = "ESP32";
+    else if (chipInfo.model == CHIP_ESP32S2) chipModel = "ESP32-S2";
+    else if (chipInfo.model == CHIP_ESP32S3) chipModel = "ESP32-S3";
+    else if (chipInfo.model == CHIP_ESP32C3) chipModel = "ESP32-C3";
+    
+    int cpuFreq = ESP.getCpuFreqMHz();
+    int flashKb = ESP.getFlashChipSize() / 1024;
+    int cores = chipInfo.cores;
+    int rev = chipInfo.revision;
+    
+    // Build JSON
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer),
+        "{\"chip\":{\"model\":\"%s\",\"rev\":%d,\"cpuFreqMhz\":%d,\"flashKb\":%d,\"cores\":%d}}",
+        chipModel, rev, cpuFreq, flashKb, cores);
+    
+    // Publish to moduleId/hardware/config
+    char topic[128];
+    snprintf(topic, sizeof(topic), "%s/hardware/config", _moduleId);
+    _mqtt->publish(topic, buffer, true);
+#endif
 }
 
 void IotMesurable::handleMqttMessage(const char* topic, const char* payload) {

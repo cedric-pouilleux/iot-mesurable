@@ -217,9 +217,13 @@ private:
     ConnectCallback _onConnect;
     
     unsigned long _lastStatusPublish;
+    unsigned long _lastSystemPublish;
     static const unsigned long STATUS_INTERVAL = 5000;
+    static const unsigned long SYSTEM_INTERVAL = 30000;  // Publish system info every 30s
     
     void publishStatus();
+    void publishSystemInfo();
+    void publishHardwareInfo();
     void handleMqttMessage(const char* topic, const char* payload);
     void setupSubscriptions();
 };
