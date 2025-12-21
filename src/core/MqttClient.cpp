@@ -8,6 +8,7 @@
 
 MqttClient::MqttClient() : _port(1883), _connected(false), _lastReconnectAttempt(0) {
     memset(_host, 0, sizeof(_host));
+    memset(_clientId, 0, sizeof(_clientId));
 #ifndef NATIVE_BUILD
     setupCallbacks();
 #endif
@@ -24,6 +25,15 @@ void MqttClient::setBroker(const char* host, uint16_t port) {
     
 #ifndef NATIVE_BUILD
     _client.setServer(_host, _port);
+#endif
+}
+
+void MqttClient::setClientId(const char* clientId) {
+    strncpy(_clientId, clientId, sizeof(_clientId) - 1);
+    _clientId[sizeof(_clientId) - 1] = '\0';
+    
+#ifndef NATIVE_BUILD
+    _client.setClientId(_clientId);
 #endif
 }
 
@@ -101,6 +111,7 @@ void MqttClient::setupCallbacks() {
     
     _client.onDisconnect([this](AsyncMqttClientDisconnectReason reason) {
         _connected = false;
+        Serial.printf("[MQTT] Disconnected (reason: %d)\n", (int)reason);
         if (_onConnect) {
             _onConnect(false);
         }

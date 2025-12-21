@@ -13,7 +13,7 @@
 
 ConfigManager::ConfigManager() : _port(1883) {
     memset(_broker, 0, sizeof(_broker));
-    loadConfig();
+    // loadConfig(); // Moved to begin methods to avoid NVS init error in global scope
 }
 
 ConfigManager::~ConfigManager() {

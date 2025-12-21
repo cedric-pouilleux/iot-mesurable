@@ -30,6 +30,11 @@ public:
     void setBroker(const char* host, uint16_t port);
     
     /**
+     * @brief Set MQTT client ID
+     */
+    void setClientId(const char* clientId);
+    
+    /**
      * @brief Connect to broker
      * @return true if connection initiated
      */
@@ -78,6 +83,7 @@ private:
     AsyncMqttClient _client;
 #endif
     char _host[128];
+    char _clientId[64];
     uint16_t _port;
     bool _connected;
     unsigned long _lastReconnectAttempt;

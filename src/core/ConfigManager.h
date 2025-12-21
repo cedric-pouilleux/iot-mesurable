@@ -77,15 +77,17 @@ public:
      */
     int loadInterval(const char* hardwareKey, int defaultValue = 60000);
 
-private:
-#ifndef NATIVE_BUILD
-    Preferences _prefs;
-#endif
-    char _broker[128];
-    uint16_t _port;
-    
+    /**
+     * @brief Load configuration from flash
+     */
     void loadConfig();
+
+    /**
+     * @brief Save configuration to flash
+     */
     void saveConfig();
+
+private:
 };
 
 #endif // CONFIG_MANAGER_H

@@ -31,6 +31,8 @@ IotMesurable::IotMesurable(const char* moduleId)
     _registry = new SensorRegistry();
     _mqtt = new MqttClient();
     _config = new ConfigManager();
+    
+    _mqtt->setClientId(_moduleId);
 }
 
 IotMesurable::~IotMesurable() {
@@ -44,6 +46,8 @@ IotMesurable::~IotMesurable() {
 // =============================================================================
 
 bool IotMesurable::begin() {
+    _config->loadConfig();
+    
     // Use WiFiManager with module ID as AP name
     if (!_config->beginWiFiManager(_moduleId)) {
         return false;
@@ -78,6 +82,8 @@ bool IotMesurable::begin() {
 }
 
 bool IotMesurable::begin(const char* ssid, const char* password) {
+    _config->loadConfig();
+    
     if (!_config->beginWiFi(ssid, password)) {
         return false;
     }
