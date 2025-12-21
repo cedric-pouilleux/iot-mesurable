@@ -26,6 +26,7 @@ IotMesurable::IotMesurable(const char* moduleId)
     strncpy(_moduleId, moduleId, sizeof(_moduleId) - 1);
     _moduleId[sizeof(_moduleId) - 1] = '\0';
     
+    _moduleType[0] = '\0';
     memset(_broker, 0, sizeof(_broker));
     
     _registry = new SensorRegistry();
@@ -134,6 +135,12 @@ void IotMesurable::setBroker(const char* host, uint16_t port) {
     _config->setBroker(host, port);
 }
 
+void IotMesurable::setModuleType(const char* type) {
+    if (!type) return;
+    strncpy(_moduleType, type, sizeof(_moduleType) - 1);
+    _moduleType[sizeof(_moduleType) - 1] = '\0';
+}
+
 // =============================================================================
 // Sensor Registration
 // =============================================================================
@@ -240,15 +247,21 @@ const char* IotMesurable::getModuleId() const {
 void IotMesurable::publishStatus() {
     if (!isConnected()) return;
     
-    // Build status JSON
-    char buffer[1024];
-    _registry->buildStatusJson(buffer, sizeof(buffer));
+    // Build sensors status JSON
+    char sensorsBuffer[1024];
+    _registry->buildStatusJson(sensorsBuffer, sizeof(sensorsBuffer));
+    
+    // Build complete status with metadata
+    char fullBuffer[1536];
+    snprintf(fullBuffer, sizeof(fullBuffer), 
+        "{\"moduleId\":\"%s\",\"moduleType\":\"%s\",\"sensors\":%s}",
+        _moduleId, _moduleType, sensorsBuffer);
     
     // Publish to moduleId/sensors/status
     char topic[128];
     snprintf(topic, sizeof(topic), "%s/sensors/status", _moduleId);
     
-    _mqtt->publish(topic, buffer, true);
+    _mqtt->publish(topic, fullBuffer, true);
 }
 
 void IotMesurable::handleMqttMessage(const char* topic, const char* payload) {

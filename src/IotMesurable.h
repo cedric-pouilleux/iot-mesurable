@@ -198,6 +198,7 @@ public:
 
 private:
     char _moduleId[64];
+    char _moduleType[64];
     char _broker[128];
     uint16_t _port;
     
