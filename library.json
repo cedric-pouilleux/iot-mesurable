@@ -26,8 +26,7 @@
   "frameworks": ["arduino"],
   "platforms": ["espressif32"],
   "dependencies": {
-    "esphome/AsyncMqttClient": "https://github.com/esphome/AsyncMqttClient.git",
-    "tzapu/WiFiManager": "https://github.com/tzapu/WiFiManager.git",
+    "ottowinter/AsyncMqttClient-esphome": "^0.8.6",
     "bblanchon/ArduinoJson": "^6.21.5"
   },
   "export": {
