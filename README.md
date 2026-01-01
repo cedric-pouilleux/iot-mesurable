@@ -21,7 +21,7 @@ Add to your `platformio.ini`:
 
 ```ini
 lib_deps = 
-    cedric-pouilleux/iot-mesurable@^1.0.0
+    cedric-pouilleux/iot-mesurable@^1.0.1
 ```
 
 ### Manual
@@ -65,6 +65,9 @@ void loop() {
 
 ```cpp
 IotMesurable brain("module-id");
+
+// Optional: Set MQTT credentials (if needed)
+brain.setCredentials("user", "password");
 
 // Option 1: WiFiManager (captive portal)
 brain.begin();

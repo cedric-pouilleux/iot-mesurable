@@ -1,6 +1,6 @@
 {
   "name": "iot-mesurable",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ESP32 library for easy sensor integration with IoT Grow Brain ecosystem. Register your own sensors and publish data with minimal code.",
   "keywords": [
     "iot",
