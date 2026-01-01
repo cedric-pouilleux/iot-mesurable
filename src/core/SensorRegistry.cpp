@@ -233,8 +233,8 @@ size_t SensorRegistry::buildConfigJson(char* buffer, size_t bufferSize) const {
             buildCompositeKey(hw.key, sensor.type, compositeKey, sizeof(compositeKey));
             
             written += snprintf(buffer + written, bufferSize - written,
-                "\"%s\":{\"interval\":%d}",
-                compositeKey, intervalSeconds);
+                "\"%s\":{\"interval\":%d,\"enabled\":%s}",
+                compositeKey, intervalSeconds, hw.enabled ? "true" : "false");
         }
     }
     

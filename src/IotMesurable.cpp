@@ -14,8 +14,12 @@
 #ifndef NATIVE_BUILD
 #include <ArduinoJson.h>
 #include <ArduinoOTA.h>
-#include <WiFi.h>
-#include <esp_system.h>
+#ifdef ESP32
+  #include <WiFi.h>
+  #include <esp_system.h>
+#elif defined(ESP8266)
+  #include <ESP8266WiFi.h>
+#endif
 #endif
 
 // =============================================================================
@@ -56,6 +60,11 @@ bool IotMesurable::begin() {
         return false;
     }
     
+#ifdef ESP32
+    // Critical for AsyncTCP stability
+    WiFi.setSleep(false);
+#endif
+    
     // Get broker from config
     if (strlen(_config->getBroker()) > 0) {
         setBroker(_config->getBroker(), _config->getPort());
@@ -81,6 +90,9 @@ bool IotMesurable::begin() {
     ArduinoOTA.begin();
 #endif
     
+    // Allow WiFi stack to stabilize
+    delay(1000);
+    
     return _mqtt->connect();
 }
 
@@ -90,6 +102,10 @@ bool IotMesurable::begin(const char* ssid, const char* password) {
     if (!_config->beginWiFi(ssid, password)) {
         return false;
     }
+    
+#ifdef ESP32
+    WiFi.setSleep(false);
+#endif
     
     // Get broker from config or use default
     if (strlen(_broker) == 0 && strlen(_config->getBroker()) > 0) {
@@ -143,6 +159,10 @@ void IotMesurable::setModuleType(const char* type) {
     _moduleType[sizeof(_moduleType) - 1] = '\0';
 }
 
+void IotMesurable::setCredentials(const char* username, const char* password) {
+    _mqtt->setCredentials(username, password);
+}
+
 // =============================================================================
 // Sensor Registration
 // =============================================================================
@@ -191,6 +211,22 @@ void IotMesurable::publish(const char* hardwareKey, const char* sensorType, int 
     publish(hardwareKey, sensorType, static_cast<float>(value));
 }
 
+void IotMesurable::log(const char* level, const char* msg) {
+    if (!isConnected()) return;
+    
+    // Build JSON: {"level":"error","msg":"...","time":12345}
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), 
+        "{\"level\":\"%s\",\"msg\":\"%s\",\"time\":%lu}",
+        level, msg, millis());
+        
+    // Publish to moduleId/logs
+    char topic[128];
+    snprintf(topic, sizeof(topic), "%s/logs", _moduleId);
+    
+    _mqtt->publish(topic, buffer, false);
+}
+
 // =============================================================================
 // Main Loop
 // =============================================================================
@@ -233,6 +269,10 @@ void IotMesurable::onConfigChange(ConfigCallback callback) {
 
 void IotMesurable::onEnableChange(EnableCallback callback) {
     _onEnableChange = callback;
+}
+
+void IotMesurable::onResetChange(ResetCallback callback) {
+    _onResetChange = callback;
 }
 
 void IotMesurable::onConnect(ConnectCallback callback) {
@@ -297,18 +337,39 @@ void IotMesurable::publishSystemInfo() {
 #ifndef NATIVE_BUILD
     if (!isConnected()) return;
     
-    // Get system info from ESP32
+    // Get system info
     char ip[16] = "0.0.0.0";
     char mac[18] = "00:00:00:00:00:00";
     unsigned long uptimeSeconds = millis() / 1000;
-    uint32_t heapFree = ESP.getFreeHeap() / 1024;
-    uint32_t heapTotal = ESP.getHeapSize() / 1024;
-    uint32_t heapMinFree = ESP.getMinFreeHeap() / 1024;
     
-    // Get flash info
-    uint32_t flashTotal = ESP.getFlashChipSize() / 1024;
-    uint32_t flashSketchSize = ESP.getSketchSize() / 1024;
-    uint32_t flashFreeSketch = ESP.getFreeSketchSpace() / 1024;
+    // Memory info
+    uint32_t heapFree = 0;
+    uint32_t heapTotal = 0;
+    uint32_t heapMinFree = 0;
+    
+    // Flash info
+    uint32_t flashTotal = 0;
+    uint32_t flashSketchSize = 0;
+    uint32_t flashFreeSketch = 0;
+
+#ifdef ESP32
+    heapFree = ESP.getFreeHeap() / 1024;
+    heapTotal = ESP.getHeapSize() / 1024;
+    heapMinFree = ESP.getMinFreeHeap() / 1024;
+    
+    flashTotal = ESP.getFlashChipSize() / 1024;
+    flashSketchSize = ESP.getSketchSize() / 1024;
+    flashFreeSketch = ESP.getFreeSketchSpace() / 1024;
+#elif defined(ESP8266)
+    heapFree = ESP.getFreeHeap() / 1024;
+    // ESP8266 doesn't have getHeapSize() easily available like ESP32 without internal SDK calls
+    // We'll leave heapTotal as 0 or estimate if needed, but for simplicity 0
+    heapMinFree = ESP.getMaxFreeBlockSize() / 1024; // Approximation for fragmentation
+    
+    flashTotal = ESP.getFlashChipRealSize() / 1024;
+    flashSketchSize = ESP.getSketchSize() / 1024;
+    flashFreeSketch = ESP.getFreeSketchSpace() / 1024;
+#endif
     
     // Get WiFi info
     if (WiFi.status() == WL_CONNECTED) {
@@ -333,8 +394,8 @@ void IotMesurable::publishSystemInfo() {
         "\"flash\":{\"totalKb\":%lu,\"usedKb\":%lu,\"freeKb\":%lu},"
         "\"rssi\":%d}",
         ip, mac, _moduleType, uptimeSeconds,
-        heapTotal, heapFree, heapMinFree,
-        flashTotal, flashSketchSize, flashFreeSketch, rssi);
+        (unsigned long)heapTotal, (unsigned long)heapFree, (unsigned long)heapMinFree,
+        (unsigned long)flashTotal, (unsigned long)flashSketchSize, (unsigned long)flashFreeSketch, rssi);
     
     // Publish to moduleId/system/config
     char topic[128];
@@ -347,20 +408,34 @@ void IotMesurable::publishHardwareInfo() {
 #ifndef NATIVE_BUILD
     if (!isConnected()) return;
     
+    const char* chipModel = "Unknown";
+    int cpuFreq = 0;
+    int flashKb = 0;
+    int cores = 1;
+    int rev = 0;
+
+#ifdef ESP32
     // Get chip info
     esp_chip_info_t chipInfo;
     esp_chip_info(&chipInfo);
     
-    const char* chipModel = "ESP32";
     if (chipInfo.model == CHIP_ESP32) chipModel = "ESP32";
     else if (chipInfo.model == CHIP_ESP32S2) chipModel = "ESP32-S2";
     else if (chipInfo.model == CHIP_ESP32S3) chipModel = "ESP32-S3";
     else if (chipInfo.model == CHIP_ESP32C3) chipModel = "ESP32-C3";
     
-    int cpuFreq = ESP.getCpuFreqMHz();
-    int flashKb = ESP.getFlashChipSize() / 1024;
-    int cores = chipInfo.cores;
-    int rev = chipInfo.revision;
+    cpuFreq = ESP.getCpuFreqMHz();
+    flashKb = ESP.getFlashChipSize() / 1024;
+    cores = chipInfo.cores;
+    rev = chipInfo.revision;
+#elif defined(ESP8266)
+    chipModel = "ESP8266";
+    cpuFreq = ESP.getCpuFreqMHz();
+    flashKb = ESP.getFlashChipRealSize() / 1024;
+    cores = 1;
+    // ESP8266 revision? 
+    rev = 0; 
+#endif
     
     // Build JSON
     char buffer[256];
@@ -384,8 +459,10 @@ void IotMesurable::handleMqttMessage(const char* topic, const char* payload) {
     
     char expectedConfigTopic[128];
     char expectedEnableTopic[128];
+    char expectedResetTopic[128];
     snprintf(expectedConfigTopic, sizeof(expectedConfigTopic), "%s/sensors/config", _moduleId);
     snprintf(expectedEnableTopic, sizeof(expectedEnableTopic), "%s/sensors/enable", _moduleId);
+    snprintf(expectedResetTopic, sizeof(expectedResetTopic), "%s/sensors/reset", _moduleId);
     
     if (strcmp(topic, expectedConfigTopic) == 0) {
         // Parse config message
@@ -428,6 +505,21 @@ void IotMesurable::handleMqttMessage(const char* topic, const char* payload) {
             if (_onEnableChange) {
                 _onEnableChange(hardware, enabled);
             }
+            
+            // Publish new config immediately to update server state
+            publishConfig();
+        }
+    }
+    else if (strcmp(topic, expectedResetTopic) == 0) {
+        // Parse reset message: { "sensor": "dht22" }
+        StaticJsonDocument<128> doc;
+        DeserializationError error = deserializeJson(doc, payload);
+        if (error) return;
+        
+        const char* sensor = doc["sensor"];
+        
+        if (sensor && _onResetChange) {
+            _onResetChange(sensor);
         }
     }
 #endif
@@ -442,5 +534,9 @@ void IotMesurable::setupSubscriptions() {
     
     // Subscribe to enable topic
     snprintf(topic, sizeof(topic), "%s/sensors/enable", _moduleId);
+    _mqtt->subscribe(topic);
+    
+    // Subscribe to reset topic
+    snprintf(topic, sizeof(topic), "%s/sensors/reset", _moduleId);
     _mqtt->subscribe(topic);
 }

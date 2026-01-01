@@ -23,8 +23,13 @@
   ],
   "license": "MIT",
   "homepage": "https://github.com/cedric-pouilleux/iot-mesurable",
-  "frameworks": ["arduino"],
-  "platforms": ["espressif32"],
+  "frameworks": [
+    "arduino"
+  ],
+  "platforms": [
+    "espressif32",
+    "espressif8266"
+  ],
   "dependencies": {
     "ottowinter/AsyncMqttClient-esphome": "^0.8.6",
     "bblanchon/ArduinoJson": "^6.21.5"

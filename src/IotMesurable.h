@@ -42,6 +42,7 @@ class ConfigManager;
 using ConfigCallback = std::function<void(const char* hardware, int intervalMs)>;
 using EnableCallback = std::function<void(const char* hardware, bool enabled)>;
 using ConnectCallback = std::function<void(bool connected)>;
+using ResetCallback = std::function<void(const char* hardware)>;
 
 /**
  * @brief Main library class
@@ -107,6 +108,15 @@ public:
      * @param type Module type string
      */
     void setModuleType(const char* type);
+    
+    /**
+     * @brief Set MQTT credentials
+     * @param username MQTT username
+     * @param password MQTT password
+     */
+    void setCredentials(const char* username, const char* password);
+
+    // =========================================================================
 
     // =========================================================================
     // Sensor Registration
@@ -145,6 +155,13 @@ public:
      * @param value Integer value to publish
      */
     void publish(const char* hardwareKey, const char* sensorType, int value);
+    
+    /**
+     * @brief Publish a log message
+     * @param level Log level (e.g., "error", "info", "warn")
+     * @param msg Log message
+     */
+    void log(const char* level, const char* msg);
 
     // =========================================================================
     // Main Loop
@@ -172,6 +189,12 @@ public:
      * @param callback Function called when hardware is enabled/disabled
      */
     void onEnableChange(EnableCallback callback);
+    
+    /**
+     * @brief Set callback for hardware reset requests
+     * @param callback Function called when a reset is requested for a hardware
+     */
+    void onResetChange(ResetCallback callback);
     
     /**
      * @brief Set callback for connection state changes
@@ -214,6 +237,7 @@ private:
     
     ConfigCallback _onConfigChange;
     EnableCallback _onEnableChange;
+    ResetCallback _onResetChange;
     ConnectCallback _onConnect;
     
     unsigned long _lastStatusPublish;

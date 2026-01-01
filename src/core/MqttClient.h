@@ -35,6 +35,11 @@ public:
     void setClientId(const char* clientId);
     
     /**
+     * @brief Set MQTT credentials
+     */
+    void setCredentials(const char* username, const char* password);
+    
+    /**
      * @brief Connect to broker
      * @return true if connection initiated
      */
@@ -84,6 +89,8 @@ private:
 #endif
     char _host[128];
     char _clientId[64];
+    char _username[64];
+    char _password[64];
     uint16_t _port;
     bool _connected;
     unsigned long _lastReconnectAttempt;

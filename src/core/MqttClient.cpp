@@ -9,9 +9,13 @@
 MqttClient::MqttClient() : _port(1883), _connected(false), _lastReconnectAttempt(0) {
     memset(_host, 0, sizeof(_host));
     memset(_clientId, 0, sizeof(_clientId));
+    memset(_username, 0, sizeof(_username));
+    memset(_password, 0, sizeof(_password));
 #ifndef NATIVE_BUILD
     setupCallbacks();
 #endif
+    memset(_username, 0, sizeof(_username));
+    memset(_password, 0, sizeof(_password));
 }
 
 MqttClient::~MqttClient() {
@@ -37,11 +41,30 @@ void MqttClient::setClientId(const char* clientId) {
 #endif
 }
 
+void MqttClient::setCredentials(const char* username, const char* password) {
+    if (username) {
+        strncpy(_username, username, sizeof(_username) - 1);
+        _username[sizeof(_username) - 1] = '\0';
+    }
+    if (password) {
+        strncpy(_password, password, sizeof(_password) - 1);
+        _password[sizeof(_password) - 1] = '\0';
+    }
+
+#ifndef NATIVE_BUILD
+    _client.setCredentials(_username, _password);
+#endif
+}
+
 bool MqttClient::connect() {
     if (strlen(_host) == 0) return false;
     
+    // Update reconnect timer to prevent immediate loop() retry
+    _lastReconnectAttempt = millis();
+    
 #ifndef NATIVE_BUILD
     if (!_client.connected()) {
+        Serial.printf("[MQTT] Connecting to %s:%d...\n", _host, _port);
         _client.connect();
     }
 #endif
