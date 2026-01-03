@@ -28,6 +28,7 @@ bool SensorRegistry::registerHardware(const char* key, const char* name) {
     
     hw.enabled = true;
     hw.intervalMs = 60000; // Default 60s
+    hw.lastPublishTime = 0; // Initialize to 0 to allow immediate first publish
     
     _hardware.push_back(hw);
     return true;
@@ -171,6 +172,33 @@ void SensorRegistry::setHardwareInterval(const char* hardwareKey, int intervalMs
     if (hw) {
         hw->intervalMs = intervalMs;
     }
+}
+
+bool SensorRegistry::canPublish(const char* hardwareKey) const {
+    const HardwareDef* hw = getHardware(hardwareKey);
+    if (!hw) return false;
+    
+    unsigned long now = millis();
+    unsigned long elapsed = now - hw->lastPublishTime;
+    
+    // Handle millis() rollover (occurs every ~49 days)
+    if (now < hw->lastPublishTime) {
+        elapsed = (0xFFFFFFFF - hw->lastPublishTime) + now;
+    }
+    
+    return elapsed >= (unsigned long)hw->intervalMs;
+}
+
+void SensorRegistry::updatePublishTime(const char* hardwareKey) {
+    HardwareDef* hw = getHardware(hardwareKey);
+    if (hw) {
+        hw->lastPublishTime = millis();
+    }
+}
+
+unsigned long SensorRegistry::getLastPublishTime(const char* hardwareKey) const {
+    const HardwareDef* hw = getHardware(hardwareKey);
+    return hw ? hw->lastPublishTime : 0;
 }
 
 // =============================================================================

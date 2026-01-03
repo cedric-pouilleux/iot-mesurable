@@ -29,6 +29,7 @@ struct HardwareDef {
     char name[64];      // e.g., "DHT22 Temperature/Humidity Sensor"
     bool enabled;
     int intervalMs;
+    unsigned long lastPublishTime;  // Last time data was published for this hardware
     std::vector<SensorDef> sensors;
 };
 
@@ -135,6 +136,25 @@ public:
      * @brief Set hardware interval
      */
     void setHardwareInterval(const char* hardwareKey, int intervalMs);
+    
+    /**
+     * @brief Check if enough time has passed since last publish for this hardware
+     * @param hardwareKey Hardware to check
+     * @return true if publish is allowed based on interval
+     */
+    bool canPublish(const char* hardwareKey) const;
+    
+    /**
+     * @brief Update the last publish time for a hardware
+     * @param hardwareKey Hardware to update
+     */
+    void updatePublishTime(const char* hardwareKey);
+    
+    /**
+     * @brief Get the last publish time for a hardware
+     * @return Last publish time in milliseconds, or 0 if never published
+     */
+    unsigned long getLastPublishTime(const char* hardwareKey) const;
 
     // =========================================================================
     // Status Building

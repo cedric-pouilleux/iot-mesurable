@@ -193,6 +193,17 @@ void IotMesurable::publish(const char* hardwareKey, const char* sensorType, floa
         return;
     }
     
+    // Get current time and last publish time
+    unsigned long now = millis();
+    unsigned long lastPublish = _registry->getLastPublishTime(hardwareKey);
+    
+    // Check throttling: allow if interval passed OR if we're in same millisecond (same read cycle)
+    bool shouldPublish = _registry->canPublish(hardwareKey) || (now == lastPublish);
+    
+    if (!shouldPublish) {
+        return;
+    }
+    
     // Update registry
     _registry->updateSensorValue(hardwareKey, sensorType, value);
     
@@ -205,6 +216,11 @@ void IotMesurable::publish(const char* hardwareKey, const char* sensorType, floa
     snprintf(payload, sizeof(payload), "%.2f", value);
     
     _mqtt->publish(topic, payload, false);
+    
+    // Update timestamp only if not already updated this millisecond
+    if (now != lastPublish) {
+        _registry->updatePublishTime(hardwareKey);
+    }
 }
 
 void IotMesurable::publish(const char* hardwareKey, const char* sensorType, int value) {
@@ -465,19 +481,27 @@ void IotMesurable::handleMqttMessage(const char* topic, const char* payload) {
     snprintf(expectedResetTopic, sizeof(expectedResetTopic), "%s/sensors/reset", _moduleId);
     
     if (strcmp(topic, expectedConfigTopic) == 0) {
+        Serial.printf("[MQTT] Config received on topic: %s\n", topic);
+        Serial.printf("[MQTT] Payload: %s\n", payload);
+        
         // Parse config message
         StaticJsonDocument<512> doc;
         DeserializationError error = deserializeJson(doc, payload);
-        if (error) return;
+        if (error) {
+            Serial.printf("[MQTT] JSON parse error: %s\n", error.c_str());
+            return;
+        }
         
         // Look for interval updates per hardware
         JsonObject sensors = doc["sensors"];
         if (sensors) {
+            Serial.println("[MQTT] Processing sensor configs...");
             for (const auto& hw : _registry->getAllHardware()) {
                 if (sensors.containsKey(hw.key)) {
                     JsonObject hwConfig = sensors[hw.key];
                     if (hwConfig.containsKey("interval")) {
                         int interval = hwConfig["interval"];
+                        Serial.printf("[MQTT] Setting %s interval to %d seconds\n", hw.key, interval);
                         _registry->setHardwareInterval(hw.key, interval * 1000);
                         _config->saveInterval(hw.key, interval * 1000);
                         
