@@ -197,8 +197,13 @@ void IotMesurable::publish(const char* hardwareKey, const char* sensorType, floa
     unsigned long now = millis();
     unsigned long lastPublish = _registry->getLastPublishTime(hardwareKey);
     
-    // Check throttling: allow if interval passed OR if we're in same millisecond (same read cycle)
-    bool shouldPublish = _registry->canPublish(hardwareKey) || (now == lastPublish);
+    // Check throttling: allow if interval passed OR within 10ms of last publish (same read cycle)
+    // This ensures all measurements from the same hardware can be published together
+    // even if they span multiple milliseconds during sequential publish() calls
+    const unsigned long SAME_CYCLE_WINDOW_MS = 10;
+    bool intervalElapsed = _registry->canPublish(hardwareKey);
+    bool sameCycle = (lastPublish == 0) || ((now - lastPublish) < SAME_CYCLE_WINDOW_MS);
+    bool shouldPublish = intervalElapsed || sameCycle;
     
     if (!shouldPublish) {
         return;
