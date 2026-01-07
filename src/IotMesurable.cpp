@@ -35,6 +35,19 @@ IotMesurable::IotMesurable(const char* moduleId)
     _moduleType[0] = '\0';
     memset(_broker, 0, sizeof(_broker));
     
+    // Extract unique chip ID
+#ifndef NATIVE_BUILD
+#ifdef ESP32
+    uint64_t chipid = ESP.getEfuseMac();
+    snprintf(_chipId, sizeof(_chipId), "%016llX", chipid);
+#elif defined(ESP8266)
+    uint32_t chipid = ESP.getChipId();
+    snprintf(_chipId, sizeof(_chipId), "%08X", chipid);
+#endif
+#else
+    snprintf(_chipId, sizeof(_chipId), "NATIVE_TEST_ID");
+#endif
+    
     _registry = new SensorRegistry();
     _mqtt = new MqttClient();
     _config = new ConfigManager();
@@ -316,6 +329,10 @@ const char* IotMesurable::getModuleId() const {
     return _moduleId;
 }
 
+const char* IotMesurable::getChipId() const {
+    return _chipId;
+}
+
 // =============================================================================
 // Private Methods
 // =============================================================================
@@ -410,11 +427,11 @@ void IotMesurable::publishSystemInfo() {
     // Build JSON
     char buffer[640];
     snprintf(buffer, sizeof(buffer),
-        "{\"ip\":\"%s\",\"mac\":\"%s\",\"moduleType\":\"%s\",\"uptimeStart\":%lu,"
+        "{\"ip\":\"%s\",\"mac\":\"%s\",\"chipId\":\"%s\",\"moduleType\":\"%s\",\"uptimeStart\":%lu,"
         "\"memory\":{\"heapTotalKb\":%lu,\"heapFreeKb\":%lu,\"heapMinFreeKb\":%lu},"
         "\"flash\":{\"totalKb\":%lu,\"usedKb\":%lu,\"freeKb\":%lu},"
         "\"rssi\":%d}",
-        ip, mac, _moduleType, uptimeSeconds,
+        ip, mac, _chipId, _moduleType, uptimeSeconds,
         (unsigned long)heapTotal, (unsigned long)heapFree, (unsigned long)heapMinFree,
         (unsigned long)flashTotal, (unsigned long)flashSketchSize, (unsigned long)flashFreeSketch, rssi);
     

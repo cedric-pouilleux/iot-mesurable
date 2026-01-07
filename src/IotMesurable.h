@@ -224,10 +224,17 @@ public:
      * @return Module ID string
      */
     const char* getModuleId() const;
+    
+    /**
+     * @brief Get the chip ID (unique hardware identifier)
+     * @return Chip ID string (hexadecimal)
+     */
+    const char* getChipId() const;
 
 private:
     char _moduleId[64];
     char _moduleType[64];
+    char _chipId[17];  // Hex string: 16 chars + null terminator
     char _broker[128];
     uint16_t _port;
     
